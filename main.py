@@ -3,6 +3,7 @@ import sys
 import math
 from Node import Node
 
+
 from PySide6 import QtWidgets, QtGui, QtCore
 from mainGrid import Ui_MainWindow
 
@@ -11,8 +12,10 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         super(Main, self).__init__()
         self.setupUi(self)
         self.start = (0,0)
-        self.end = (27,10)
-        self.nodes = self.makeGrid(30,30)
+        self.end = (13,10)
+        self.gridHeight = 40
+        self.gridWidth = 40
+        self.nodes = self.makeGrid(self.gridHeight, self.gridWidth)
         self.setStartAndEnd(self.start, self.end)
         self.setNeighbors()
         self.Astar(self.start, self.end )
@@ -27,12 +30,26 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
             innerList = []
             for j in range(0, width):  
                 node = Node(i,j)
-                newButton = QtWidgets.QPushButton("X")
-                newButton.setStyleSheet("color:white;")
+                newButton = QtWidgets.QPushButton(self)
+                newButton.clicked.connect(lambda a=i, b=j: self.buttonClicked((a,b)))
+                newButton.setStyleSheet("background-color:rgb(105,105,105); border: none;")
+                newButton.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
                 self.mainGrid.addWidget(newButton, node.position[0],node.position[1] )
                 innerList.append(node)
             grid.append(innerList)
         return grid
+
+    def buttonClicked(self, location):
+        modifier = QtWidgets.QApplication.keyboardModifiers()
+        self.resetBtns()
+        if modifier == QtCore.Qt.ShiftModifier:
+            self.start = (location[0], location[1])
+        
+        if modifier == QtCore.Qt.ControlModifier:
+            self.end = (location[0], location[1])
+
+        self.setStartAndEnd(self.start, self.end)
+        self.Astar(self.start, self.end )
 
     def setStartAndEnd(self, start : tuple, end: tuple):
         startButton = self.mainGrid.itemAtPosition(start[0], start[1]).widget()
@@ -65,7 +82,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         while(len(notTestedNodes) > 0 ):
             notTestedNodes.sort(key= lambda x: x.dGlobal, reverse=True)
             currentNode = notTestedNodes.pop()
-
+            
             if(currentNode is endNode):
                 break
 
@@ -74,7 +91,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
 
                if(not currentNode is startNode): 
                     btn = self.mainGrid.itemAtPosition(currentNode.position[0], currentNode.position[1])
-                    btn.widget().setStyleSheet("background-color:yellow;")
+                    btn.widget().setStyleSheet("background-color:yellow;")  #these are the nodes we visit that are not the path.
 
                for i in currentNode.neighbors:
                     if(not i.visited and not i in notTestedNodes):
@@ -86,7 +103,6 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
                         i.parent = currentNode
                         i.dGlobal = i.dLocal + self.getDistance(i, endNode) 
                     
-
         self.showPath(endNode)     
            
     def showPath(self, endNode):
@@ -94,8 +110,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         currentBtn = self.mainGrid.itemAtPosition(currentNode.position[0], currentNode.position[1]) 
         while currentNode.parent != None:
             if(not currentNode is endNode):
-                currentBtn.widget().setText("")
-                currentBtn.widget().setStyleSheet("background-color: blue;")
+                currentBtn.widget().setStyleSheet("background-color:blue; border: none;")
             currentNode = currentNode.parent
             currentBtn = self.mainGrid.itemAtPosition(currentNode.position[0], currentNode.position[1]) 
      
@@ -126,8 +141,20 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
 
                 currentNode.neighbors = neighborList
 
-                
+    def resetBtns(self):
+        for i in range(0, self.gridWidth):
+            for j in range(0, self.gridHeight):
+                node = self.nodes[i][j]
+                btn = self.mainGrid.itemAtPosition(i, j)
 
+                node.visited = False
+                node.parent = None
+                node.dGlobal = 99999
+                node.dLocal = 99999
+                
+                btn.widget().setText("")
+                btn.widget().setStyleSheet("background-color:rgb(105,105,105); border: none; ")
+                
 
 
 if __name__ == "__main__":
