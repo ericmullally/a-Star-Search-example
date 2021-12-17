@@ -1,9 +1,8 @@
 
 import sys
 import math
+
 from Node import Node
-
-
 from PySide6 import QtWidgets, QtGui, QtCore
 from mainGrid import Ui_MainWindow
 
@@ -12,9 +11,9 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         super(Main, self).__init__()
         self.setupUi(self)
         self.start = (0,0)
-        self.end = (13,10)
-        self.gridHeight = 40
-        self.gridWidth = 40
+        self.end = (19,19)
+        self.gridHeight = 20
+        self.gridWidth = 20
         self.nodes = self.makeGrid(self.gridHeight, self.gridWidth)
         self.setStartAndEnd(self.start, self.end)
         self.setNeighbors()
@@ -32,6 +31,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
                 node = Node(i,j)
                 newButton = QtWidgets.QPushButton(self)
                 newButton.clicked.connect(lambda a=i, b=j: self.buttonClicked((a,b)))
+                newButton.setText("X")
                 newButton.setStyleSheet("background-color:rgb(105,105,105); border: none;")
                 newButton.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
                 self.mainGrid.addWidget(newButton, node.position[0],node.position[1] )
@@ -40,13 +40,19 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         return grid
 
     def buttonClicked(self, location):
+        x,y = location
         modifier = QtWidgets.QApplication.keyboardModifiers()
+        node = self.nodes[x][y]
+
         self.resetBtns()
         if modifier == QtCore.Qt.ShiftModifier:
-            self.start = (location[0], location[1])
+            self.start = (x, y)
         
-        if modifier == QtCore.Qt.ControlModifier:
-            self.end = (location[0], location[1])
+        elif modifier == QtCore.Qt.ControlModifier:
+            self.end = (x, y)
+        else:
+            node.blocked = True
+            self.mainGrid.itemAtPosition(x,y).widget().setStyleSheet("background-color:black; border: none;")
 
         self.setStartAndEnd(self.start, self.end)
         self.Astar(self.start, self.end )
@@ -60,8 +66,8 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         startNode.dGlobal = self.getDistance(startNode, endNode)
         startButton.setText("S")
         endButton.setText("E")
-        startButton.setStyleSheet("background-color:green;")
-        endButton.setStyleSheet("background-color:red;")
+        startButton.setStyleSheet("background-color:green; border:none;")
+        endButton.setStyleSheet("background-color:red; border:none;")
     
     def getDistance(self, startNode, endNode): 
         """
@@ -71,39 +77,7 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         yDistance = abs( endNode.position[0] - startNode.position[0])
         xDistance = abs(endNode.position[1] - startNode.position[1])
 
-        return math.sqrt(xDistance**2 + yDistance**2)
-
-    def Astar(self, start:tuple, end:tuple):
-        startNode = self.nodes[start[0]][start[1]]
-        endNode = self.nodes[end[0]][end[1]]
-        notTestedNodes = []
-        notTestedNodes.append(startNode)
-
-        while(len(notTestedNodes) > 0 ):
-            notTestedNodes.sort(key= lambda x: x.dGlobal, reverse=True)
-            currentNode = notTestedNodes.pop()
-            
-            if(currentNode is endNode):
-                break
-
-            if(not currentNode.visited):
-               currentNode.visited = True 
-
-               if(not currentNode is startNode): 
-                    btn = self.mainGrid.itemAtPosition(currentNode.position[0], currentNode.position[1])
-                    btn.widget().setStyleSheet("background-color:yellow;")  #these are the nodes we visit that are not the path.
-
-               for i in currentNode.neighbors:
-                    if(not i.visited and not i in notTestedNodes):
-                       notTestedNodes.append(i)
-
-                    estmimattedLocalGoal = currentNode.dLocal + self.getDistance(currentNode, i)
-                    if(estmimattedLocalGoal < i.dLocal):
-                        i.dLocal = estmimattedLocalGoal
-                        i.parent = currentNode
-                        i.dGlobal = i.dLocal + self.getDistance(i, endNode) 
-                    
-        self.showPath(endNode)     
+        return math.sqrt(xDistance**2 + yDistance**2) 
            
     def showPath(self, endNode):
         currentNode = endNode
@@ -120,7 +94,6 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
         if the node is on an edge it sets those neighbors to none 
         then filters them out of the final list
         """
-        
         for i in range(0, len(self.nodes)):
             maxJ = len(self.nodes[i]) -1
             maxI = len(self.nodes) -1
@@ -144,18 +117,48 @@ class Main(QtWidgets.QMainWindow, Ui_MainWindow):
     def resetBtns(self):
         for i in range(0, self.gridWidth):
             for j in range(0, self.gridHeight):
-                node = self.nodes[i][j]
-                btn = self.mainGrid.itemAtPosition(i, j)
+                node = self.nodes[i][j] 
+                if not node.blocked:
+                    btn = self.mainGrid.itemAtPosition(i, j)
+                    btn.widget().setText("X")
+                    btn.widget().setStyleSheet("background-color:rgb(105,105,105); border: none; ")
 
                 node.visited = False
                 node.parent = None
                 node.dGlobal = 99999
                 node.dLocal = 99999
-                
-                btn.widget().setText("")
-                btn.widget().setStyleSheet("background-color:rgb(105,105,105); border: none; ")
-                
+                         
+    def Astar(self, start:tuple, end:tuple):
+        startNode = self.nodes[start[0]][start[1]]
+        endNode = self.nodes[end[0]][end[1]]
+        notTestedNodes = []
+        notTestedNodes.append(startNode)
 
+        while(len(notTestedNodes) > 0 ):
+            notTestedNodes.sort(key= lambda x: x.dGlobal, reverse=True)
+            currentNode = notTestedNodes.pop()
+            
+            if(currentNode is endNode):
+                break
+
+            if(not currentNode.visited):
+               currentNode.visited = True 
+
+               if(not currentNode is startNode): 
+                    btn = self.mainGrid.itemAtPosition(currentNode.position[0], currentNode.position[1])
+                    btn.widget().setStyleSheet("background-color:yellow; border: none;")  #these are the nodes we visit that are not the path.
+
+               for i in currentNode.neighbors:
+                    if(not i.visited and not i in notTestedNodes and not i.blocked):
+                        notTestedNodes.append(i)
+
+                        estmimattedLocalGoal = currentNode.dLocal + self.getDistance(currentNode, i)
+                        if(estmimattedLocalGoal < i.dLocal):
+                            i.dLocal = estmimattedLocalGoal
+                            i.parent = currentNode
+                            i.dGlobal = i.dLocal + self.getDistance(i, endNode) 
+                    
+        self.showPath(endNode)    
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
